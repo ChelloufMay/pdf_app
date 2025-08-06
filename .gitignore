@@ -1,0 +1,14 @@
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Conda env (if you kept it in the repo)
+env/
+pdfapi/
+
+# Flask uploads
+backend/uploads/
+
+# IDE settings
+.vscode/
+*.suo
