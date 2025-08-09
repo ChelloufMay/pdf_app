@@ -25,7 +25,7 @@ pwd  = os.getenv('MYSQL_PASS')
 host = os.getenv('MYSQL_HOST') 
 db   = os.getenv('MYSQL_DB')  
 uri  = f"mysql+pymysql://{user}:{pwd}@{host}/{db}"# Full SQLAlchemy URI string
-engine = create_engine(uri)                       # Create a connection pool / engine
+engine = create_engine(uri, echo=True)                       # Create a connection pool / engine||echo=True prints SQL to console
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────>:(
 # 5) Health-check endpoint — confirms the app is running
@@ -57,26 +57,38 @@ def upload_pdf():
 
     fn = secure_filename(file.filename)            # Sanitize the filename (prevent ../ etc.)
 
-    save_path = os.path.join(app.config['UPLOAD_FOLDER'], fn)  # Build the full path to save the file
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], fn)  # Build the full path to save the file                         
 
-    file.save(save_path)                           # Write the file to disk
+    try:
+        # ensure uploads directory exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        file.save(save_path)  # Write the file to disk
+        size_kb = os.path.getsize(save_path) // 1024   #Compute file size in KB
 
-    size_kb = os.path.getsize(save_path) // 1024   # Compute file size in KB
+        # Use engine.begin() so INSERT is committed automatically
+        with engine.begin() as conn:
+            stmt = text(
+                "INSERT INTO pdf_files (filename, url, size_kb) "
+                "VALUES (:fn, :url, :sz)"
+            )# Prepare parameterized SQL
 
-    # Insert file metadata into the database
-    with engine.connect() as conn:
-        stmt = text(
-            "INSERT INTO pdf_files (filename, url, size_kb) "
-            "VALUES (:fn, :url, :sz)"
-        )# Prepare parameterized SQL
-
-        conn.execute(stmt, {
+            conn.execute(stmt, {
             'fn': fn,
             'url': f'/files/{fn}',
             'sz': size_kb
         })# Execute with actual values
+            
+    except Exception as e:
+        # if something fails, remove the saved file and report error
+        if os.path.exists(save_path):
+            try:
+                os.remove(save_path)
+            except Exception:
+                pass
+        app.logger.exception("Upload failed")
+        return jsonify({'error': 'Upload failed', 'detail': str(e)}), 500
 
-    return jsonify({'message': 'Uploaded', 'filename': fn}), 201  # 201 Created response
+    return jsonify({'message': 'Uploaded', 'filename': fn}), 201 # 201 Created response
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────>:(
 # 8) List-files endpoint — returns all uploaded PDFs (most recent first)
