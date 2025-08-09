@@ -7,7 +7,7 @@ CREATE DATABASE IF NOT EXISTS pdf_app_db
 
 USE pdf_app_db;
 
--- 2) (Optional) Create or update pdf_user
+-- 2) Create or update pdf_user
 CREATE USER IF NOT EXISTS 'pdf_user'@'localhost'
   IDENTIFIED BY 'BrightSun!2025$';
 GRANT SELECT, INSERT, UPDATE, DELETE
