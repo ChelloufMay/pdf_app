@@ -94,12 +94,15 @@ def upload_pdf():
 # 8) List-files endpoint — returns all uploaded PDFs (most recent first)
 @app.route('/list', methods=['GET'])
 def list_files():
+    # Run the SELECT and ask SQLAlchemy for mapping rows (dict-like)
     with engine.connect() as conn:
-        rows = conn.execute(text(
+        result = conn.execute(text(
             "SELECT filename, url, size_kb, upload_time "
             "FROM pdf_files ORDER BY upload_time DESC"
-        )).fetchall() # Fetch all rows into a list
-    files = [dict(r) for r in rows] # Convert each row to a Python dict
+        ))
+        # Convert to list of mappings (each mapping acts like {'filename': ..., ...})
+        mapping_rows = result.mappings().all()
+    files = [dict(r) for r in mapping_rows] # Convert each row to a Python dict
     return jsonify(files) # Return JSON array of file metadata
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────>:(
